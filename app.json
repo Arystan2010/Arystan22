@@ -1,0 +1,72 @@
+const app = document.getElementById('app');
+const weatherEl = document.getElementById('weather');
+let userCoords = null;
+let places = [];
+
+// Инициализация
+async function init() {
+  try {
+    userCoords = await getUserLocation();
+  } catch {
+    console.warn("Геолокация недоступна");
+  }
+
+  try {
+    const res = await fetch('data/places.json');
+    places = await res.json();
+  } catch {
+    app.innerHTML = "<p>Ошибка загрузки мест</p>";
+    return;
+  }
+
+  if (userCoords) getWeather(userCoords);
+
+  window.onpopstate = () => {
+    const id = new URLSearchParams(location.search).get('id');
+    if (id) renderDetail(parseInt(id));
+    else renderList();
+  }
+
+  const id = new URLSearchParams(location.search).get('id');
+  if (id) renderDetail(parseInt(id));
+  else renderList();
+}
+
+// Геолокация
+function getUserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject();
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({lat: pos.coords.latitude, lon: pos.coords.longitude}),
+      err => reject(err)
+    );
+  });
+}
+
+// Погода
+async function getWeather(coords) {
+  try {
+    const url = https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current_weather=true;
+    const res = await fetch(url);
+    const data = await res.json();
+    weatherEl.textContent = Температура: ${data.current_weather.temperature}°C;
+  } catch {
+    weatherEl.textContent = "Ошибка получения погоды";
+  }
+}
+
+// Расстояние
+function calcDistance(lat1, lon1, lat2, lon2) {
+  if (!userCoords) return '';
+  const R = 6371;
+  const toRad = deg => deg * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)*2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*2;
+  const c = 2 * Math.asin(Math.sqrt(a));
+  return (R * c).toFixed(1) + " км";
+}
+
+// Избранное
+function toggleFavorite(place, btn) {
+  let favorites = JSON.parse(localStorage.getItem('smarttrip_favorites') || '[]');
